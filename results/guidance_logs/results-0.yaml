@@ -1,0 +1,28 @@
+config:
+  ckpt: ./models/best_checkpoint_14.ckpt
+  context_length: 336
+  dataset: solar_nips
+  device: cuda:0
+  diffusion_config: diffusion_small_config
+  freq: H
+  init_skip: false
+  num_samples: 100
+  prediction_length: 24
+  sampler: ddpm
+  sampler_params:
+    guidance: quantile
+    scale: 8
+  setup: forecasting
+  use_features: false
+  use_lags: true
+  config: configs/guidance/guidance_solar.yaml
+  out_dir: ./results
+  missing_data_configs:
+  - missing_scenario: none
+    missing_values: 0
+metrics:
+- missing_scenario: none
+  missing_values: 0
+  NRMSE: 1.861054016382647
+  mean_wQuantileLoss: 0.3684419353480112
+  ND: 0.4954911632885563
