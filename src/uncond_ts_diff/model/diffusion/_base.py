@@ -72,14 +72,19 @@ class TSDiffBase(pl.LightningModule):
         if cardinalities is None:
             cardinalities = [1]
         self.embedder = FeatureEmbedder(
+            # 包含每个静态类别特征的类别数（或称基数）。基数是指该特征中不同类别的数量。例如，如果有一个特征是“星期几”，那么它的基数就是7，因为一周有7天。
             cardinalities=cardinalities,
+            # 为每个类别特征指定嵌入维度, 限制在最大50维
             embedding_dims=[min(50, (cat + 1) // 2) for cat in cardinalities],
         )
         self.time_features = (
+            # 这个函数返回的是一个时间特征函数的列表。每个函数都是一个特征提取器，能够接收一个时间点并返回一个与该特征相关的数值。
             time_features_from_frequency_str(freq) if freq is not None else []
         )
 
         self.num_feat_dynamic_real = (
+            # 基本特征 + 用户定义的特征 + 时间特征
+            # 每个从时间频率字符串生成的时间特征都被认为是一个动态实数特征
             1 + num_feat_dynamic_real + len(self.time_features)
         )
         self.num_feat_static_cat = max(num_feat_static_cat, 1)
@@ -99,6 +104,7 @@ class TSDiffBase(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        # 会在一定条件下降低学习率
         scheduler = ReduceLROnPlateau(
             optimizer, mode="min", factor=0.5, patience=int(1e12)
         )
@@ -107,6 +113,7 @@ class TSDiffBase(pl.LightningModule):
     def log(self, name, value, **kwargs):
         super().log(name, value, **kwargs)
         if isinstance(value, torch.Tensor):
+            # 将其转换为一个Python标量
             value = value.detach().cpu().item()
         if name not in self.logs:
             self.logs[name] = [value]
@@ -121,6 +128,7 @@ class TSDiffBase(pl.LightningModule):
     def q_sample(self, x_start, t, noise=None):
         device = next(self.backbone.parameters()).device
         if noise is None:
+            # 生成标准正态分布（均值为0，方差为1）的噪声
             noise = torch.randn_like(x_start, device=device)
         sqrt_alphas_cumprod_t = extract(
             self.sqrt_alphas_cumprod, t, x_start.shape
@@ -138,7 +146,9 @@ class TSDiffBase(pl.LightningModule):
         self,
         x_start,
         t,
+        # 额外的特征，可以用于损失计算。
         features=None,
+        # 如果提供，这个噪声会被用来直接参与损失计算，而不是从数据中重新生成。
         noise=None,
         loss_type="l2",
         reduction="mean",
@@ -182,7 +192,8 @@ class TSDiffBase(pl.LightningModule):
             posterior_variance_t = extract(self.posterior_variance, t, x.shape)
             noise = torch.randn_like(x)
             return model_mean + torch.sqrt(posterior_variance_t) * noise
-
+        
+    # DDIM，Deterministic Denoising Diffusion Implicit Models
     @torch.no_grad()
     def p_sample_ddim(self, x, t, features=None, noise=None):
         if noise is None:
@@ -198,21 +209,29 @@ class TSDiffBase(pl.LightningModule):
         )
         sqrt_alphas_cumprod_t = extract(self.sqrt_alphas_cumprod, t, x.shape)
         x0pointer = (
+            # 首先从当前的噪声数据x中减去根据当前时间步估计的噪声成分（sqrt_one_minus_alphas_cumprod_t * noise），这是为了去除噪声的影响并尽可能恢复接近于原始数据的状态。
+            # 然后，通过与sqrt_alphas_cumprod_prev_t / sqrt_alphas_cumprod_t相乘来调整尺度，这个比率考虑了在连续时间步中α的累积乘积（即整个扩散过程中稳定性因子的累积影响），以确保恢复的数据尺度正确。
             sqrt_alphas_cumprod_prev_t
             * (x - sqrt_one_minus_alphas_cumprod_t * noise)
             / sqrt_alphas_cumprod_t
         )
+        # xtpointer代表在给定时间步t，由噪声直接贡献的部分。考虑了从开始到前一时间步累积的α因子对噪声影响的调整。
         xtpointer = sqrt_one_minus_alphas_cumprod_prev_t * noise
+        # 生成了在时间步t处，对原始数据x0的一个整体估计。
         return x0pointer + xtpointer
 
+    # 这种方法允许在纯DDIM（Deterministic Denoising Diffusion Implicit Models，eta=0）和纯DDPM（Denoising Diffusion Probabilistic Models，eta=1）之间进行插值
     @torch.no_grad()
     def p_sample_genddim(
         self,
         x: torch.Tensor,
         t: torch.Tensor,
         t_index: int,
+        # 上一个时间步的标识（如果有的话）。
         t_prev: Optional[torch.Tensor] = None,
+        # 插值参数，允许在DDPM和DDIM之间进行插值。eta=0时，模型行为类似于DDIM，即更加确定性；eta=1时，模型行为类似于DDPM，引入了更多的随机性。
         eta: float = 0.0,
+        # 可选的额外特征，可以提供给模型以辅助恢复原始数据。
         features=None,
         noise: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
