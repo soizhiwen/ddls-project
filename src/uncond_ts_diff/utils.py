@@ -94,15 +94,26 @@ def plot_train_stats(df: pd.DataFrame, y_keys=None, skip_first_epoch=True):
     ax.set_xlabel("Epoch")
     plt.show()
 
-
+# 在时间序列分析中，滞后是指将时间序列中的观察值按时间向后移动的数量，通常用于捕捉时间序列的季节性和趋势性特征。
+# freq_str是一个字符串，它表示时间序列的频率。这个字符串遵循Pandas时间序列频率字符串的约定，用来描述数据点之间的时间间隔。以下是一些常见的freq_str示例及其含义：
+#"D"：每天。
+#"H"：每小时。
+#"M"：每月的最后一个日历日。
+#"B"：每个工作日（排除周末和公众假期）。
+#"W"：每周的星期日。
+#"Q"：每季度的最后一个月的最后一个日历日。
+#"2H"：每2小时。
+#"15min"：每15分钟。
 def get_lags_for_freq(freq_str: str):
     offset = to_offset(freq_str)
     if offset.n > 1:
         raise NotImplementedError(
             "Lags for freq multiple > 1 are not implemented yet."
         )
+    # 如果频率名称是"H"（小时），则生成一个基于小时的滞后序列。例如，[24, 48, 72, ...]代表了每24小时（1天）的滞后，用于捕捉日间的季节性变化。
     if offset.name == "H":
         lags_seq = [24 * i for i in [1, 2, 3, 4, 5, 6, 7, 14, 21, 28]]
+    # 如果频率名称是"D"（天）或"B"（工作日），则生成一个基于天的滞后序列。例如，[30, 60, 90, ...]代表了每30天（大约1个月）的滞后，用于捕捉月度的季节性变化。
     elif offset.name == "D" or offset.name == "B":
         # TODO: Fix lags for B
         lags_seq = [30 * i for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]]

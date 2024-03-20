@@ -48,7 +48,9 @@ class TSDiff(TSDiffBase):
 
         self.freq = freq
         if use_lags:
+            # 获取一组适用的滞后时间点。这些滞后时间点表示在过去观察数据时应该考虑哪些具体的时间偏移量。
             self.lags_seq = get_lags_for_freq(freq)
+            # 通过增加input_dim和output_dim来调整模型的主干网络（backbone）参数，确保网络能够处理包含滞后特征的输入数据。这是通过在原有的维度基础上加上滞后序列长度len(self.lags_seq)来实现的。(所以输入维度会变)
             backbone_parameters = backbone_parameters.copy()
             backbone_parameters["input_dim"] += len(self.lags_seq)
             backbone_parameters["output_dim"] += len(self.lags_seq)

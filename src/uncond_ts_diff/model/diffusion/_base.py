@@ -295,6 +295,7 @@ class TSDiffBase(pl.LightningModule):
                 i,
                 features,
             )
+            # 每次逆向步骤后，将当前步骤生成的序列添加到seqs列表中
             seqs.append(seq.cpu().numpy())
 
         return np.stack(seqs, axis=0)
@@ -317,10 +318,13 @@ class TSDiffBase(pl.LightningModule):
         assert self.training is True
         device = next(self.backbone.parameters()).device
         if isinstance(data, dict):
+            # 如果data是一个字典，那么使用self._extract_features(data)来提取特征
             x, _, features = self._extract_features(data)
         else:
+            # 如果不是，假设数据直接是输入张量x，并可能通过self.scaler进行缩放处理。
             x, _ = self.scaler(data, torch.ones_like(data))
 
+        # 随机生成一个与批次大小相同的时间步向量t，这些时间步用于模拟扩散过程中的不同阶段。每个数据点会被分配一个随机的时间步。
         t = torch.randint(
             0, self.timesteps, (x.shape[0],), device=device
         ).long()
