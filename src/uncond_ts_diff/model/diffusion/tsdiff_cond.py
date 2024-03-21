@@ -9,6 +9,19 @@ from uncond_ts_diff.model.diffusion._base import TSDiffBase
 from uncond_ts_diff.model.diffusion._base import PREDICTION_INPUT_NAMES
 from uncond_ts_diff.utils import get_lags_for_freq
 
+# 相比于tsdiff的不同：
+
+# 特征处理
+# TSDiffCond 在处理特征时引入了orig_past_target作为新的输入之一，并在特征提取过程中使用了这个新输入。这可能意味着TSDiffCond旨在处理更多的输入特征，或者以不同的方式利用历史数据。
+# TSDiffCond 也引入了对observation_mask的处理，这是一个指示数据点是否被观测到的掩码。这表明TSDiffCond对处理缺失数据或不完整数据序列采取了特别的考虑。
+
+# 模型训练与验证
+# TSDiffCond 的training_step和validation_step方法中显式处理了loss_mask，这是一个基于observation_mask计算出的掩码，用于在损失计算中考虑或忽略特定的数据点。这强调了TSDiffCond在处理缺失或不完整数据时的灵活性。
+# TSDiffCond 在其step方法中根据noise_observed参数的值采取不同的处理策略，显示出对噪声处理方式的细致控制。
+
+# 预测（forecast方法）
+# TSDiffCond 包含了一个forecast方法，这在TSDiff类中没有直接体现。forecast方法使用了observation_mask来区分已观测的数据点和未观测的数据点，进一步强调了TSDiffCond处理不完整数据的能力。
+
 PREDICTION_INPUT_NAMES = PREDICTION_INPUT_NAMES + ["orig_past_target"]
 
 
@@ -30,6 +43,7 @@ class TSDiffCond(TSDiffBase):
         use_lags=True,
         lr=1e-3,
         init_skip=True,
+        # new
         noise_observed=True,
     ):
         super().__init__(
@@ -82,11 +96,13 @@ class TSDiffCond(TSDiffBase):
 
         scaled_prior = prior / scale
         scaled_future = data["future_target"] / scale
+        # 引入了"orig_past_target"作为数据的一个部分，并进行了缩放处理（scaled_orig_context = (data["orig_past_target"][:, -self.context_length :]) / scale）。这表示除了常规的上下文和先前数据外，还考虑了一个未经标准化处理的原始上下文版本，可能用于保持或恢复某些原始的时间序列属性。
         scaled_orig_context = (
             data["orig_past_target"][:, -self.context_length :]
         ) / scale
 
         x = torch.cat([scaled_orig_context, scaled_future], dim=1)
+        # 这个掩码被用于生成x_past，这是一个包含了已观测上下文和零填充的未来目标的合成数据张量。这种处理方式允许模型区分已观测的数据点和未来（或可能缺失）的数据点。
         observation_mask = torch.zeros_like(x, device=device)
         observation_mask[:, : -self.prediction_length] = data[
             "past_observed_values"
@@ -203,6 +219,7 @@ class TSDiffCond(TSDiffBase):
         seq = torch.randn_like(observation)
 
         for i in reversed(range(0, self.timesteps)):
+            # 模型配置为不直接使用观测数据中的噪声，而是将观测掩码observation_mask用于区分已观测的数据点和未观测（或需要生成）的数据点。在这种情况下，seq在每个时间步都会根据observation_mask更新，将观测数据和噪声数据结合起来，以此作为self.p_sample方法的输入。
             if not self.noise_observed:
                 seq = observation_mask * observation + seq * (
                     1 - observation_mask
