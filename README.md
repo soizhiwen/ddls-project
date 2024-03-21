@@ -2,9 +2,16 @@
 
 This repository contains the implementation of federated learning on [TSDiff](https://github.com/amazon-science/unconditional-time-series-diffusion).
 
-### dataset 
+### train:
 
-https://www.kaggle.com/datasets/marquis03/heartbeat-classification/data?select=train.csv
+python bin/train_model.py -c configs/train_tsdiff/train_uber_tlc.yaml
 
 ### test:
 python bin/guidance_experiment.py -c configs/guidance/guidance_solar.yaml --ckpt ./models/best_checkpoint_14.ckpt
+
+### About GluonTS
+https://zh.mxnet.io/blog/gluon-ts-release
+
+### 下一步
+
+在train_model中实现server和clients
