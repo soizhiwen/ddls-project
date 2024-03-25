@@ -131,6 +131,8 @@ def main(config, log_dir):
     # Create model
     model = create_model(config)
 
+    # here create server and clients model
+
     # Setup dataset and data loading
     dataset = get_gts_dataset(dataset_name)
     assert dataset.metadata.freq == freq
