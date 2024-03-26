@@ -18,3 +18,13 @@ https://zh.mxnet.io/blog/gluon-ts-release
 
 ### Tutorial: 
 Variational Inference | Evidence Lower Bound (ELBO): https://www.youtube.com/watch?v=HxQ94L8n0vU
+
+### Env
+
+conda activate tsdiff
+
+pip install --editable "."
+
+CUDA must be 11.8, and install pytorch again.
+
+conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
