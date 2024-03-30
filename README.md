@@ -21,10 +21,10 @@ Variational Inference | Evidence Lower Bound (ELBO): https://www.youtube.com/wat
 
 ### Env
 
-conda activate tsdiff
+- conda activate tsdiff
 
-pip install --editable "."
+- pip install --editable "."
 
 CUDA must be 11.8, and install pytorch again.
 
-conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+- conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
