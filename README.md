@@ -14,7 +14,7 @@ https://zh.mxnet.io/blog/gluon-ts-release
 
 ### 下一步
 
-在train_model中实现server和clients
+
 
 ### Tutorial: 
 Variational Inference | Evidence Lower Bound (ELBO): https://www.youtube.com/watch?v=HxQ94L8n0vU
