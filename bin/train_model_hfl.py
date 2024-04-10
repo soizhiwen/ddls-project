@@ -5,53 +5,14 @@ import numpy.random as npr
 from torch.utils.data import Subset
 from dataclasses import asdict, dataclass, field
 from pandas import DataFrame
+from abc import ABC, abstractmethod
+from torch.utils.data import DataLoader
+import pandas as pd
+import pickle
 
+# VFL module
 
-def split(train_dataset, nr_clients: int, iid: bool, seed: int) -> list[Subset]:
-    rng = npr.default_rng(seed)
-    if iid:
-        splits = np.array_split(rng.permutation(len(train_dataset)), nr_clients)
-    # manually create niid dataset, using sorted targets
-    else:
-        # sorted_indices: ascending order index : [5, 3, ...]
-        sorted_indices = np.argsort(np.array([target for _data, target in train_dataset]))
-        # len(shards) = 2 * nr_clients
-        shards = np.array_split(sorted_indices, 2 * nr_clients)
-        shuffled_shard_indices = rng.permutation(len(shards))
-        splits = [
-            np.concatenate([shards[i] for i in inds], dtype=np.int64)
-            for inds in shuffled_shard_indices.reshape(-1, 2)]
-
-    return [Subset(train_dataset, split) for split in cast(list[list[int]], splits)]
-
-ETA = "\N{GREEK SMALL LETTER ETA}"
-@dataclass
-class RunResult:
-    algorithm: str
-    n: int  # number of clients
-    c: float  # client_fraction
-    b: int  # take -1 as inf
-    e: int  # nr_local_epochs
-    lr: float  # printed as lowercase eta
-    seed: int
-    wall_time: list[float] = field(default_factory=list)
-    message_count: list[int] = field(default_factory=list)
-    test_accuracy: list[float] = field(default_factory=list)
-    # self means this dataclass
-    # -> followed by a type annotation to specify the return type of a function or method
-    def as_df(self, skip_wtime=False) -> DataFrame:
-        self_dict = {
-            # Capitalize the first letter of each key (attribute name) and replace underscores with spaces
-            k.capitalize().replace("_", " "): v
-            for k, v in asdict(self).items()}
-        if self_dict["B"] == -1:
-            self_dict["B"] = "\N{INFINITY}"
-        df = DataFrame({"Round": range(1, len(self.wall_time) + 1), **self_dict})
-        df = df.rename(columns={"Lr": ETA})
-        if skip_wtime:
-            df = df.drop(columns=["Wall time"])
-        return df
-    
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def main(config, log_dir):
     # Load parameters
@@ -67,7 +28,30 @@ def main(config, log_dir):
     # here create server and clients model
 
     # Setup dataset and data loading
+
+    # Data structure:
+    # TrainDatasets(
+    # metadata=MetaData(freq='H', target=None, feat_static_cat=[CategoricalFeatureInfo(name='feat_static_cat_0', cardinality='262')], feat_static_real=[], feat_dynamic_real=[], feat_dynamic_cat=[], prediction_length=24), 
+    # train=Map(fn=<gluonts.dataset.common.ProcessDataEntry object at 0x7f6f08675850>, iterable=JsonLinesFile(path=PosixPath('/home/fcr/.mxnet/gluon-ts/datasets/uber_tlc_hourly/train/data.json.gz'), start=0, n=None)), 
+    # test=Map(fn=<gluonts.dataset.common.ProcessDataEntry object at 0x7f6f08675c40>, iterable=JsonLinesFile(path=PosixPath('/home/fcr/.mxnet/gluon-ts/datasets/uber_tlc_hourly/test/data.json.gz'), start=0, n=None))
+    # )
+
+    # dataset.train(
+    # {
+    # 'start': Period('2015-02-22 13:00', 'H'), 
+    # 'target': array([1., 0., 0., ..., 0., 0., 0.], dtype=float32), 
+    # 'feat_static_cat': array([1], dtype=int32), 
+    # 'item_id': 1
+    # }
+    # )
+
     dataset = get_gts_dataset(dataset_name)
+
+    # for i, entry in enumerate(dataset.train):
+    #     print(entry)
+    #     if i >= 0:
+    #         break
+
     assert dataset.metadata.freq == freq
     assert dataset.metadata.prediction_length == prediction_length
 
