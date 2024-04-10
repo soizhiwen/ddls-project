@@ -50,7 +50,7 @@ def create_model(config):
 
 
 def evaluate_guidance(
-    config, model, test_dataset, transformation, num_samples=100
+    config, model, test_dataset, transformation, num_samples=100, logger = None
 ):
     logger.info(f"Evaluating with {num_samples} samples.")
     results = []
@@ -237,7 +237,7 @@ def main(config, log_dir):
     model.load_state_dict(best_state_dict, strict=True)
 
     metrics = (
-        evaluate_guidance(config, model, dataset.test, transformation)
+        evaluate_guidance(config, model, dataset.test, transformation, logger)
         if config.get("do_final_eval", True)
         else "Final eval not performed"
     )
