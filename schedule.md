@@ -1,5 +1,4 @@
-Aditya Shankar <A.Shankar@tudelft.nl>
-​
+
 Hello Aditya,
 
 I learned about your work : SiloFuse, using Encoder to transform tabular data into latent space, much like LDM does, very interesting!
@@ -33,5 +32,3 @@ These are the first things that come to mind and I’d like to hear your thought
 
 Best regards,
 Aditya
-
-1. 
